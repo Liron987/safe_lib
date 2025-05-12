@@ -5,6 +5,7 @@
 
 typedef struct Node {
     void *ptr;
+    size_t size;
     int freed;
     struct Node *next;
 } Node;
@@ -23,6 +24,7 @@ void* safe_malloc(size_t size) {
     }
     
     n->ptr = p;
+    n->size = size;
     n->freed = 0;
     n->next = alloc_list;
     alloc_list = n;
@@ -44,6 +46,7 @@ void* safe_realloc(void *ptr, size_t size) {
     while (n) {
         if (n->ptr == ptr) {
             n->ptr = new_ptr;
+            n->size = size;
             return new_ptr;
         }
         n = n->next;
@@ -63,6 +66,7 @@ void safe_free(void *p) {
             }
             free(p);
             n->freed = 1;
+            n->size = 0;
             return;
         }
         n = n->next;
@@ -80,4 +84,19 @@ int check_free(void *ptr) {
         n = n->next;
     }
     return -1;  // Not tracked
+}
+
+// Returns the size of the allocated block, or:
+// -1 if not tracked
+// -2 if the block has already been freed
+ssize_t safe_sizeof(void *ptr) {
+    Node *n = alloc_list;
+    while (n) {
+        if (n->ptr == ptr) {
+            if (n->freed) return -2;
+            return (ssize_t)n->size;
+        }
+        n = n->next;
+    }
+    return -1;
 }
