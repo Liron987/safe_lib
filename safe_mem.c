@@ -17,6 +17,11 @@ void* safe_malloc(size_t size) {
     if (!p) return NULL;
 
     Node *n = malloc(sizeof(Node));
+    if (!n) {
+        free(p);  // clean up previously allocated memory
+        return NULL;
+    }
+    
     n->ptr = p;
     n->freed = 0;
     n->next = alloc_list;
