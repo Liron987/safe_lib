@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Node {
+typedef struct Node 
+{
     void *ptr;
     size_t size;
     int freed;
@@ -12,9 +13,10 @@ typedef struct Node {
 
 Node *alloc_list = NULL;
 
-// Safe malloc
-void* safe_malloc(size_t size) {
-    void *p = malloc(size);
+// Safe allocation of memory - zero initialized
+void* safe_alloc(size_t size) 
+{
+    void *p = calloc(1, size);
     if (!p) return NULL;
 
     Node *n = malloc(sizeof(Node));
@@ -32,16 +34,39 @@ void* safe_malloc(size_t size) {
     return p;
 }
 
+// Check if memory has been freed
+// Return values:
+//  0 = valid and not freed
+//  1 = was freed
+// -1 = not tracked
+int check_free(void *ptr) {
+    Node *n = alloc_list;
+    while (n) {
+        if (n->ptr == ptr) {
+            return n->freed ? 1 : 0;
+        }
+        n = n->next;
+    }
+    return -1;
+}
+
 // Safe realloc
-void* safe_realloc(void *ptr, size_t size) {
-    if (check_free(ptr) != 0) {
-        fprintf(stderr, "[safe_realloc] Pointer is freed or invalid.\n");
+void* safe_realloc(void *ptr, size_t size) 
+{
+    // NULL realloc = malloc
+    if (!ptr) return safe_alloc(size);
+    
+    int status = check_free(ptr);
+    if (status != 0) {  // either freed or untracked
+        fprintf(stderr, "[safe_realloc] Pointer is %s.\n",
+                status == 1 ? "already freed" : "not tracked");
         return NULL;
     }
 
     void *new_ptr = realloc(ptr, size);
     if (!new_ptr) return NULL;
 
+    // Update the node with the new pointer and size
     Node *n = alloc_list;
     while (n) {
         if (n->ptr == ptr) {
@@ -52,39 +77,47 @@ void* safe_realloc(void *ptr, size_t size) {
         n = n->next;
     }
 
-    return new_ptr;
+    // Shouldn't reach here if check_free worked correctly
+    fprintf(stderr, "[safe_realloc] Internal error: pointer not found in list.\n");
+    return NULL;
 }
 
 // Safe free
 void safe_free(void *p) {
-    Node *n = alloc_list;
-    while (n) {
-        if (n->ptr == p) {
-            if (n->freed) {
+    Node *curr = alloc_list;
+    Node *prev = NULL;
+
+    while (curr) {
+        if (curr->ptr == p) {
+            if (curr->freed) {
                 fprintf(stderr, "[safe_free] Double free detected!\n");
                 return;
             }
-            free(p);
-            n->freed = 1;
-            n->size = 0;
+
+            // Optional: Zero memory before freeing (security sensitive)
+            memset(curr->ptr, 0, curr->size);
+
+            free(curr->ptr);  // Free user data
+            curr->freed = 1;   // Mark as freed
+            curr->size = 0;    // Clear size (optional, not strictly necessary)
+
+            // Unlink and free node from list
+            if (prev) {
+                prev->next = curr->next;
+            } else {
+                alloc_list = curr->next;  // Remove the head node if freeing the first item
+            }
+
+            free(curr);  // Free the node itself
             return;
         }
-        n = n->next;
+        prev = curr;
+        curr = curr->next;
     }
+
     fprintf(stderr, "[safe_free] Invalid or untracked free!\n");
 }
 
-// Check if memory has been freed
-int check_free(void *ptr) {
-    Node *n = alloc_list;
-    while (n) {
-        if (n->ptr == ptr) {
-            return n->freed ? 1 : 0;  // 1 if freed, 0 if still valid
-        }
-        n = n->next;
-    }
-    return -1;  // Not tracked
-}
 
 // Returns the size of the allocated block, or:
 // -1 if not tracked
@@ -99,4 +132,14 @@ ssize_t safe_sizeof(void *ptr) {
         n = n->next;
     }
     return -1;
+}
+
+// Safe strlen
+static size_t safe_strlen(const char *str)
+{
+    if (!str) {
+        safe_fprintf(stderr, "String is NULL in safe_strlen\n");
+        return 0;
+    }
+    return strlen(str);
 }
