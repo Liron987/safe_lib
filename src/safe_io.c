@@ -4,21 +4,26 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
-// Safe memcpy
 void* safe_memcpy(void *dest, const void *src, size_t n) {
-    if (check_free((void *)src) != 0) {
-        fprintf(stderr, "[safe_memcpy] Source pointer is freed or invalid.\n");
+    if (n <= 0) {
+        fprintf(stderr, "[safe_memcpy] Copy size must be greater than zero.\n");
         return NULL;
     }
-
-    if (check_free(dest) != 0) {
-        fprintf(stderr, "[safe_memcpy] Destination pointer is freed or invalid.\n");
+    if (src == NULL) {
+        fprintf(stderr, "[safe_memcpy] Source pointer is NULL.\n");
+        return NULL;
+    }
+    if (dest == NULL) {
+        fprintf(stderr, "[safe_memcpy] Destination pointer is NULL.\n");
         return NULL;
     }
 
     return memcpy(dest, src, n);
 }
+
+
 
 // Safe printf with pointer check
 int safe_printf(const char *format, ...) {
@@ -39,7 +44,7 @@ int safe_printf(const char *format, ...) {
             switch (*p) {
                 case 's': {
                     char *arg = va_arg(args, char *);
-                    if (check_free(arg) != 0) {
+                    if (check_free(arg) == 1) {
                         fprintf(stderr, "[safe_printf] Argument for %%s is freed or invalid.\n");
                         va_end(args);
                         return -1;
@@ -80,7 +85,7 @@ int safe_fprintf(FILE *stream, const char *format, ...) {
         return -1;
     }
 
-    if (check_free((void *)format) != 0) {
+    if (check_free((void *)format) == 1) {
         fprintf(stderr, "[safe_fprintf] Format string is freed or invalid.\n");
         return -1;
     }
@@ -102,7 +107,7 @@ int safe_fprintf(FILE *stream, const char *format, ...) {
             switch (*p) {
                 case 's': {
                     char *arg = va_arg(args, char *);
-                    if (check_free(arg) != 0) {
+                    if (check_free(arg) == 1) {
                         fprintf(stderr, "[safe_fprintf] %%s arg is freed or invalid.\n");
                         va_end(args);
                         return -1;
@@ -139,12 +144,12 @@ int safe_fprintf(FILE *stream, const char *format, ...) {
 // safe_snprintf with guard against both buffer overflows and use-after-free errors in format arguments.
 // it will fail fast (exit) upon UAF, so we don't run with garbage values (potential security risk)
 int safe_snprintf(char *str, size_t size, const char *format, ...) {
-    if (check_free(str) != 0) {
+    if (check_free(str) == 1) {
         fprintf(stderr, "[safe_snprintf] Destination buffer is freed or invalid.\n");
         exit(EXIT_FAILURE);  // Exit immediately upon detecting UAF
     }
 
-    if (check_free((void *)format) != 0) {
+    if (check_free((void *)format) == 1) {
         fprintf(stderr, "[safe_snprintf] Format string is freed or invalid.\n");
         exit(EXIT_FAILURE);  // Exit immediately upon detecting UAF
     }
@@ -174,7 +179,7 @@ int safe_snprintf(char *str, size_t size, const char *format, ...) {
             switch (*p) {
                 case 's': {
                     char *arg = va_arg(args_copy, char *);
-                    if (check_free(arg) != 0) {
+                    if (check_free(arg) == 1) {
                         fprintf(stderr, "[safe_snprintf] %%s argument is freed or invalid.\n");
                         exit(EXIT_FAILURE);  // Exit on UAF
                     }

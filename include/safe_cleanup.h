@@ -10,11 +10,13 @@ typedef enum {
     SAFE_RESOURCE_CUSTOM
 } SafeResourceType;
 
+
 typedef struct {
     SafeResourceType type;
     void *handle;
     void (*custom_cleanup)(void *);
 } SafeResource;
+
 
 // Cleans up an array of resources
 void safe_cleanup_all(SafeResource *resources, int count);

@@ -1,0 +1,21 @@
+.
+├── LICENSE
+├── Makefile
+├── bin
+│   ├── debug
+│   └── release
+├── directory_structure.txt
+├── include
+│   ├── safe_cleanup.h
+│   ├── safe_io.h
+│   └── safe_mem.h
+├── obj
+│   ├── debug
+│   └── release
+├── src
+│   ├── safe_cleanup.c
+│   ├── safe_io.c
+│   └── safe_mem.c
+└── קובץ טקסט….txt
+
+9 directories, 10 files

@@ -1,7 +1,10 @@
 #include "safe_mem.h"
+#include "safe_io.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <unistd.h>
 
 typedef struct Node 
 {
@@ -33,6 +36,7 @@ void* safe_alloc(size_t size)
 
     return p;
 }
+
 
 // Check if memory has been freed
 // Return values:
@@ -85,7 +89,6 @@ void* safe_realloc(void *ptr, size_t size)
 // Safe free
 void safe_free(void *p) {
     Node *curr = alloc_list;
-    Node *prev = NULL;
 
     while (curr) {
         if (curr->ptr == p) {
@@ -94,29 +97,19 @@ void safe_free(void *p) {
                 return;
             }
 
-            // Optional: Zero memory before freeing (security sensitive)
+            // Optional: Zero memory
             memset(curr->ptr, 0, curr->size);
 
-            free(curr->ptr);  // Free user data
-            curr->freed = 1;   // Mark as freed
-            curr->size = 0;    // Clear size (optional, not strictly necessary)
-
-            // Unlink and free node from list
-            if (prev) {
-                prev->next = curr->next;
-            } else {
-                alloc_list = curr->next;  // Remove the head node if freeing the first item
-            }
-
-            free(curr);  // Free the node itself
+            free(curr->ptr);
+            curr->freed = 1;  // Keep in list for UAF detection
             return;
         }
-        prev = curr;
         curr = curr->next;
     }
 
     fprintf(stderr, "[safe_free] Invalid or untracked free!\n");
 }
+
 
 
 // Returns the size of the allocated block, or:
@@ -135,7 +128,7 @@ ssize_t safe_sizeof(void *ptr) {
 }
 
 // Safe strlen
-static size_t safe_strlen(const char *str)
+size_t safe_strlen(const char *str)
 {
     if (!str) {
         safe_fprintf(stderr, "String is NULL in safe_strlen\n");
@@ -143,3 +136,4 @@ static size_t safe_strlen(const char *str)
     }
     return strlen(str);
 }
+
