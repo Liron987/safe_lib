@@ -113,9 +113,10 @@ void safe_free(void *p) {
 
 
 // Returns the size of the allocated block, or:
-// -1 if not tracked
 // -2 if the block has already been freed
-ssize_t safe_sizeof(void *ptr) {
+ssize_t safe_sizeof_impl(void *ptr, size_t hint) {
+    if (!ptr) return -1;
+
     Node *n = alloc_list;
     while (n) {
         if (n->ptr == ptr) {
@@ -124,7 +125,9 @@ ssize_t safe_sizeof(void *ptr) {
         }
         n = n->next;
     }
-    return -1;
+
+    // Fallback: use size hint only if pointer is assumed valid
+    return (ssize_t)hint;
 }
 
 // Safe strlen
@@ -137,3 +140,35 @@ size_t safe_strlen(const char *str)
     return strlen(str);
 }
 
+// Generic safe element access
+void *get_safe(void *arr, size_t index, ssize_t total_bytes, size_t elem_size) {
+    if (total_bytes < 0) {
+        fprintf(stderr, "get_safe: invalid memory\n");
+        abort();
+    }
+
+    size_t total_elements = total_bytes / elem_size;
+    if (index >= total_elements) {
+        fprintf(stderr, "get_safe: index %zu out of bounds (size %zu)\n", index, total_elements);
+        abort();
+    }
+
+    return (char *)arr + index * elem_size;
+}
+
+// Generic safe element write
+void *set_safe(void *arr, size_t index, void *value, ssize_t total_bytes, size_t elem_size) {
+    if (total_bytes < 0) {
+        fprintf(stderr, "set_safe: invalid memory\n");
+        abort();
+    }
+
+    size_t total_elements = total_bytes / elem_size;
+    if (index >= total_elements) {
+        fprintf(stderr, "set_safe: index %zu out of bounds (size %zu)\n", index, total_elements);
+        abort();
+    }
+
+    void *dest = (char *)arr + index * elem_size;
+    return memcpy(dest, value, elem_size);
+}
